@@ -1,0 +1,22 @@
+# Perfil DEV. Activar con: SPRING_PROFILES_ACTIVE=dev
+# application.yaml se carga primero; este archivo sobrescribe solo lo de desarrollo.
+
+spring:
+  jpa:
+    properties:
+      hibernate:
+        format_sql: true            # SQL legible
+        use_sql_comments: true      # relaciona el SQL con la consulta JPQL que lo generó
+
+app:
+  db-status:
+    show-details: true              # diagnóstico local
+
+logging:
+  level:
+    root: INFO
+    com.uxflow: DEBUG
+    org.hibernate.SQL: DEBUG
+    # Valores de los parámetros (?, ?, ...). Solo en desarrollo: muestra emails,
+    # hashes de token y respuestas del formulario en los logs.
+    org.hibernate.orm.jdbc.bind: TRACE

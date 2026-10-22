@@ -1,0 +1,21 @@
+# Perfil PROD. Activar con: SPRING_PROFILES_ACTIVE=prod
+# Credenciales, URLs y secretos llegan por variables de entorno. Nunca escribirlos acá.
+
+spring:
+  jpa:
+    properties:
+      hibernate:
+        format_sql: false
+        use_sql_comments: false
+
+app:
+  db-status:
+    show-details: false             # no exponer host, usuario ni estado del pool
+
+logging:
+  level:
+    root: INFO
+    com.uxflow: INFO
+    # Sin SQL ni valores de parámetros: contienen datos personales.
+    org.hibernate.SQL: OFF
+    org.hibernate.orm.jdbc.bind: OFF

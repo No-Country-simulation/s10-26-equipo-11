@@ -1,0 +1,116 @@
+# Configuración base. Los valores sensibles llegan por variables de entorno.
+# NUNCA escribir credenciales reales en este archivo.
+
+spring:
+  application:
+    name: uxflow-api
+
+  # Supabase (PostgreSQL gestionado), solo como base de datos.
+  # Usar el Session pooler (puerto 5432) o la conexión directa, nunca el
+  # Transaction pooler (6543). Ejemplo de DB_URL:
+  #   jdbc:postgresql://aws-0-<region>.pooler.supabase.com:5432/postgres?sslmode=require
+  # Con el Session pooler, DB_USER es postgres.<project-ref>.
+  # El default apunta a un Postgres local para arrancar sin .env.
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/uxflow}
+    username: ${DB_USER:uxflow}
+    password: ${DB_PASSWORD:}
+    hikari:
+      pool-name: uxflow-pool
+      maximum-pool-size: ${DB_POOL_SIZE:5}       # el plan gratuito limita conexiones
+      minimum-idle: ${DB_POOL_MIN_IDLE:1}        # no sostener conexiones ociosas contra el pooler
+      connection-timeout: ${DB_CONNECTION_TIMEOUT_MS:15000}
+      validation-timeout: ${DB_VALIDATION_TIMEOUT_MS:5000}
+      # El pooler de Supabase corta las conexiones ociosas. Si Hikari las recicla
+      # antes, el primer request después de un rato sin tráfico no falla.
+      # keepalive < idle-timeout < max-lifetime.
+      keepalive-time: ${DB_KEEPALIVE_MS:120000}      # 2 min
+      idle-timeout: ${DB_IDLE_TIMEOUT_MS:300000}     # 5 min
+      max-lifetime: ${DB_MAX_LIFETIME_MS:600000}     # 10 min
+
+  jpa:
+    hibernate:
+      ddl-auto: validate        # el esquema lo maneja Flyway, nunca Hibernate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+
+  flyway:
+    # FLYWAY_ENABLED=false para probar solo la conectividad contra la base
+    # compartida sin aplicar migraciones desde tu máquina.
+    enabled: ${FLYWAY_ENABLED:true}
+    locations: classpath:db/migration
+    schemas: ${DB_SCHEMA:public}
+    # Sin baseline-on-migrate: la base es nueva y V1 crea todo. Con esa opción,
+    # si el esquema ya tuviera algo, Flyway marcaría V1 como aplicada sin correrla.
+
+  jackson:
+    default-property-inclusion: always    # Los campos null se devuelven (ej. "errors": null)
+    datatype:
+      datetime:
+        # Jackson 3 (Spring Boot 4) movió esta opción a DateTimeFeature.
+        # Fechas en ISO-8601 UTC, nunca epoch (ver API.md).
+        write-dates-as-timestamps: false
+
+  web:
+    error:
+      include-message: never
+
+server:
+  port: ${PORT:8080}
+  servlet:
+    context-path: /api/v1     # los controladores y SecurityConfig se escriben sin este prefijo
+
+app:
+  # Base de los links que van en los emails (magic link, ver desafío, etc.).
+  frontend-url: ${FRONTEND_URL:http://localhost:3000}
+  cors:
+    # Lista separada por comas. Nunca "*".
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
+  openapi:
+    # URL pública del backend desplegado, incluido /api/v1, para el selector
+    # de servidores de Swagger UI. Vacía: solo se publica el local.
+    server-url: ${OPENAPI_SERVER_URL:}
+  db-status:
+    # GET /api/v1/public/db-status. En true agrega host, usuario y estado del pool.
+    # El endpoint es público: en producción va en `false` (application-prod.yaml).
+    show-details: ${DB_STATUS_DETAILS:false}
+  security:
+    jwt-secret: ${JWT_SECRET:}                       # obligatorio, mínimo 32 bytes
+    decision-maker-token-ttl-minutes: 60
+    admin-token-ttl-minutes: 480
+  magic-link:
+    ttl-minutes: 15
+  google:
+    # Client ID de Google Identity Services, el mismo que usa el frontend.
+    # GoogleIdTokenVerifier lo exige como audience del idToken.
+    client-id: ${GOOGLE_CLIENT_ID:}
+  brevo:
+    api-key: ${BREVO_API_KEY:}
+    sender-email: ${BREVO_SENDER_EMAIL:}             # remitente verificado en Brevo
+    sender-name: UXFlow
+    webhook-secret: ${BREVO_WEBHOOK_SECRET:}         # secreto compartido del webhook
+  admin:
+    # Destino de los avisos a admins (nueva solicitud de llamada, etc.)
+    notification-email: ${ADMIN_NOTIFICATION_EMAIL:}
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html          # queda en /api/v1/swagger-ui.html
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true               # /api/v1/actuator/health/liveness y /readiness
+
+logging:
+  level:
+    root: INFO
+    com.uxflow: INFO
